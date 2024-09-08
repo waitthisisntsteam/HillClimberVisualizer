@@ -16,7 +16,8 @@ namespace HillClimberVisualizer
         private Random Random;
         private List<Point> Points;
 
-        private KeyValuePair<int, int> CurrentSlope;
+        private KeyValuePair<double, double> CurrentBestSlope;
+        private KeyValuePair<double, double> CurrentSlope;
 
         public Game1()
         {
@@ -36,29 +37,34 @@ namespace HillClimberVisualizer
             Points.Add(new Point(200, 200));
             Points.Add(new Point(300, 100));
 
+            CurrentBestSlope = new(0, 0);
+
             CurrentSlope = new();
-            CurrentSlope = GenerateSlope();
 
             base.Initialize();
         }
 
-        protected int CalculateY(int m, int x, int b) => m * x + b;
-        protected KeyValuePair<int, int> GenerateSlope() => new KeyValuePair<int, int>(Random.Next(0, GraphicsDevice.Viewport.Height), Random.Next(0, GraphicsDevice.Viewport.Height));
+        protected double CalculateY(double m, double x, double b) => m * x + b;
+        protected KeyValuePair<double, double> GenerateSlope() => new KeyValuePair<double, double>(Random.Next(0, GraphicsDevice.Viewport.Height), Random.Next(0, GraphicsDevice.Viewport.Height));
 
-        protected KeyValuePair<int, int> Mutate(KeyValuePair<int, int> input)
+        protected KeyValuePair<double, double> Mutate(KeyValuePair<double, double> input)
         {
             int valAlteration = Random.Next(0, 2) == 0 ? -1 : 1;
+            int inputSelector = Random.Next(0, 2);
 
-            int m = input.Key + Random.Next(0, 100) * valAlteration;
-            int b = input.Value + Random.Next(0, 100) * valAlteration;
+            double m = input.Key;
+            double b = input.Value;
 
-            return new KeyValuePair<int, int>(m, b);
+            if (inputSelector == 0) m = input.Key + Random.NextDouble() * valAlteration;
+            else b = input.Value + Random.NextDouble() * valAlteration;
+
+            return new KeyValuePair<double, double>(m, b);
         }
 
-        protected double Error(List<Point> desiredOutput, KeyValuePair<int, int> slope)
+        protected double Error(List<Point> desiredOutput, KeyValuePair<double, double> slope)
         {
             double sum = 0;
-            for (int i = 0; i < desiredOutput.Count; i++) sum += Math.Abs(desiredOutput[i].Y - CalculateY(slope.Key, desiredOutput[i].X, slope.Value));
+            for (int i = 0; i < desiredOutput.Count; i++) sum += Math.Pow(desiredOutput[i].Y - CalculateY(slope.Key, desiredOutput[i].X, slope.Value), 2);
             return sum / desiredOutput.Count;
         }
 
@@ -77,14 +83,14 @@ namespace HillClimberVisualizer
 
             // TODO: Add your update logic here
 
-            double error = Error(Points, CurrentSlope);
+            double error = Error(Points, CurrentBestSlope);
 
-            var newSlope = Mutate(CurrentSlope);
-            double newError = Error(Points, newSlope);
+            CurrentSlope = Mutate(CurrentBestSlope);
+            double newError = Error(Points, CurrentSlope);
             
             if (newError < error)
             {
-                CurrentSlope = newSlope;
+                CurrentBestSlope = CurrentSlope;
                 error = newError;
             }
 
@@ -100,9 +106,13 @@ namespace HillClimberVisualizer
 
             foreach (Point p in Points) spriteBatch.DrawPoint(p.X, p.Y, Color.Blue, 10);
 
-            int y1 = CalculateY(CurrentSlope.Key, 0, CurrentSlope.Value);
-            int y2 = CalculateY(CurrentSlope.Key, GraphicsDevice.Viewport.Width, CurrentSlope.Value);
-            spriteBatch.DrawLine(0, y2, GraphicsDevice.Viewport.Width, y1, Color.Black, 2);
+            double y1 = CalculateY(CurrentBestSlope.Key, 0, CurrentBestSlope.Value);
+            double y2 = CalculateY(CurrentBestSlope.Key, GraphicsDevice.Viewport.Width, CurrentBestSlope.Value);
+            spriteBatch.DrawLine(0, (float)y1, GraphicsDevice.Viewport.Width, (float)y2, Color.Black, 2);
+
+            double ny1 = CalculateY(CurrentSlope.Key, 0, CurrentSlope.Value);
+            double ny2 = CalculateY(CurrentSlope.Key, GraphicsDevice.Viewport.Width, CurrentSlope.Value);
+            spriteBatch.DrawLine(0, (float)ny1, GraphicsDevice.Viewport.Width, (float)ny2, Color.Blue, 2);
 
             spriteBatch.End();
 
