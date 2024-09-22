@@ -4,9 +4,9 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace HillClimberVisualizer
+namespace LinearClassification
 {
-    class Perceptron
+    public class Perceptron
     {
         public double[] Weights;
         public double Bias;
