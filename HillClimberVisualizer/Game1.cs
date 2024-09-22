@@ -1,10 +1,9 @@
 ﻿using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
-using System.Collections.Generic;
-using System;
-using System.Threading;
 using MonoGame.Extended;
+using System;
+using System.Collections.Generic;
 
 namespace HillClimberVisualizer
 {
@@ -19,6 +18,11 @@ namespace HillClimberVisualizer
         private KeyValuePair<double, double> CurrentBestSlope;
         private KeyValuePair<double, double> CurrentSlope;
 
+        private Perceptron HillClimber;
+        double[][] Inputs;
+        double[] DesiredOutputs;
+        double CurrentError;
+
         public Game1()
         {
             gfx = new GraphicsDeviceManager(this);
@@ -26,9 +30,16 @@ namespace HillClimberVisualizer
             IsMouseVisible = true;
         }
 
+        static double Error(double output, double desiredOutput) => desiredOutput - output;
+
         protected override void Initialize()
         {
-            // TODO: Add your initialization logic here
+            HillClimber = new Perceptron(1, 0.01, 1, Error);
+            HillClimber.Randomize(new Random(), 0, 2);
+            Inputs = [[100], [200], [300]];
+            DesiredOutputs = [300, 200, 100];
+
+            CurrentError = HillClimber.GetError(Inputs, DesiredOutputs);
 
             Random = new Random();
             Points = new List<Point>();
@@ -38,42 +49,17 @@ namespace HillClimberVisualizer
             Points.Add(new Point(300, 100));
 
             CurrentBestSlope = new(0, 0);
-
             CurrentSlope = new();
 
             base.Initialize();
         }
 
         protected double CalculateY(double m, double x, double b) => m * x + b;
-        protected KeyValuePair<double, double> GenerateSlope() => new KeyValuePair<double, double>(Random.Next(0, GraphicsDevice.Viewport.Height), Random.Next(0, GraphicsDevice.Viewport.Height));
-
-        protected KeyValuePair<double, double> Mutate(KeyValuePair<double, double> input)
-        {
-            int valAlteration = Random.Next(0, 2) == 0 ? -1 : 1;
-            int inputSelector = Random.Next(0, 2);
-
-            double m = input.Key;
-            double b = input.Value;
-
-            if (inputSelector == 0) m = input.Key + Random.NextDouble() * valAlteration;
-            else b = input.Value + Random.NextDouble() * valAlteration;
-
-            return new KeyValuePair<double, double>(m, b);
-        }
-
-        protected double Error(List<Point> desiredOutput, KeyValuePair<double, double> slope)
-        {
-            double sum = 0;
-            for (int i = 0; i < desiredOutput.Count; i++) sum += Math.Pow(desiredOutput[i].Y - CalculateY(slope.Key, desiredOutput[i].X, slope.Value), 2);
-            return sum / desiredOutput.Count;
-        }
 
 
         protected override void LoadContent()
         {
             spriteBatch = new SpriteBatch(GraphicsDevice);
-
-            // TODO: use this.Content to load your game content here
         }
 
         protected override void Update(GameTime gameTime)
@@ -81,18 +67,8 @@ namespace HillClimberVisualizer
             if (GamePad.GetState(PlayerIndex.One).Buttons.Back == ButtonState.Pressed || Keyboard.GetState().IsKeyDown(Keys.Escape))
                 Exit();
 
-            // TODO: Add your update logic here
-
-            double error = Error(Points, CurrentBestSlope);
-
-            CurrentSlope = Mutate(CurrentBestSlope);
-            double newError = Error(Points, CurrentSlope);
-            
-            if (newError < error)
-            {
-                CurrentBestSlope = CurrentSlope;
-                error = newError;
-            }
+            CurrentError = HillClimber.TrainHillClimber(Inputs, DesiredOutputs, CurrentError, out CurrentSlope);
+            CurrentBestSlope = new(HillClimber.Weights[0], HillClimber.Bias);
 
             base.Update(gameTime);
         }
@@ -100,8 +76,6 @@ namespace HillClimberVisualizer
         protected override void Draw(GameTime gameTime)
         {
             GraphicsDevice.Clear(Color.White);
-
-            // TODO: Add your drawing code here
             spriteBatch.Begin();
 
             foreach (Point p in Points) spriteBatch.DrawPoint(p.X, p.Y, Color.Blue, 10);
