@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace LinearClassification
+namespace HillClimberVisualizer
 {
     public class Perceptron
     {
@@ -14,15 +14,25 @@ namespace LinearClassification
         private double BiasMutationAmount;
         private Func<double, double, double> ErrorFunc;
 
-        public Perceptron(double[] weights, double bias, double mutationAmount, double biasAmount, Func<double, double, double> errorFunc)
+        private double Min;
+        private double Max;
+        private double NMin;
+        private double NMax;
+
+        public Perceptron(double[] weights, double bias, double mutationAmount, double biasAmount, Func<double, double, double> errorFunc, double min, double max, double nMin, double nMax)
         {
             Weights = weights;
             Bias = bias;
             WeightMutationAmount = mutationAmount;
             BiasMutationAmount = biasAmount;
             ErrorFunc = errorFunc;
+
+            Min = min;
+            Max = max;
+            NMin = nMin;
+            NMax = nMax;
         }
-        public Perceptron(int inputAmount, double mutationAmount, double biasAmount, Func<double, double, double> errorFunc)
+        public Perceptron(int inputAmount, double mutationAmount, double biasAmount, Func<double, double, double> errorFunc, double min, double max, double nMin, double nMax)
         {
             Weights = new double[inputAmount];
             Bias = 0;
@@ -30,6 +40,11 @@ namespace LinearClassification
             BiasMutationAmount = biasAmount;
             WeightMutationAmount = mutationAmount;
             ErrorFunc = errorFunc;
+
+            Min = min;
+            Max = max;
+            NMin = nMin;
+            NMax = nMax;
         }
 
         private double Random(Random random, double min, double max) => (random.NextDouble() * (max - min)) + min;
@@ -62,6 +77,8 @@ namespace LinearClassification
             return errorSum / outputs.Length;
         }
 
+        public double Normalize(double num) => (num - Min) / (Max - Min) * (NMax - NMin) + NMin;
+        public double Unnormalize(double num) => (num - NMin) / (NMax - NMin) * (Max - Min) + Min;
         public double TrainHillClimber(double[][] inputs, double[] desiredOutputs, double currentError, out KeyValuePair<double, double> testedSlope)
         {
             Random rand = new Random();
@@ -69,13 +86,26 @@ namespace LinearClassification
             int valAlteration = rand.Next(0, 2) == 1 ? -1 : 1;
             double originalWeight = chosenIndex < Weights.Length ? Weights[chosenIndex] : 0;
             double originalBias = Bias;
-           
+
+            for (int i = 0; i < inputs.Length; i++)
+            {
+                for (int j = 0; j < inputs[i].Length; j++) inputs[i][j] = Normalize(inputs[i][j]);
+            }
+            for (int i = 0; i < desiredOutputs.Length; i++) desiredOutputs[i] = Normalize(desiredOutputs[i]);
+
             if (chosenIndex < Weights.Length) Weights[chosenIndex] += WeightMutationAmount * valAlteration;
             else Bias += BiasMutationAmount * valAlteration;
 
             double error = GetError(inputs, desiredOutputs);
 
-            testedSlope = new KeyValuePair<double, double>(Weights[0], Bias);
+            testedSlope = new KeyValuePair<double, double>(Weights[0], Unnormalize(Bias));
+
+            for (int i = 0; i < inputs.Length; i++)
+            {
+                for (int j = 0; j < inputs[i].Length; j++) inputs[i][j] = Unnormalize(inputs[i][j]);
+            }
+            for (int i = 0; i < desiredOutputs.Length; i++) desiredOutputs[i] = Unnormalize(desiredOutputs[i]);
+
             if (error < currentError) return error;
             if (chosenIndex < Weights.Length) Weights[chosenIndex] = originalWeight;
             else Bias = originalBias;

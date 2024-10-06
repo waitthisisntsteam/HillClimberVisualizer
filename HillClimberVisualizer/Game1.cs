@@ -34,7 +34,9 @@ namespace HillClimberVisualizer
 
         protected override void Initialize()
         {
-            HillClimber = new Perceptron(1, 0.01, 1, Error);
+            HillClimber = new Perceptron(1, 0.01, 0.1, Error, 0, 300, 0, 1);
+            // instead of 300 the best solution would be finding the intercept of the secant line for smallest point and largest point
+            // OR using compute for the slope data instead of direct refrence
             HillClimber.Randomize(new Random(), 0, 2);
             Inputs = [[100], [200], [300]];
             DesiredOutputs = [300, 200, 100];
@@ -50,12 +52,10 @@ namespace HillClimberVisualizer
 
             CurrentBestSlope = new(0, 0);
             CurrentSlope = new();
-
             base.Initialize();
         }
 
         protected double CalculateY(double m, double x, double b) => m * x + b;
-
 
         protected override void LoadContent()
         {
@@ -68,7 +68,7 @@ namespace HillClimberVisualizer
                 Exit();
 
             CurrentError = HillClimber.TrainHillClimber(Inputs, DesiredOutputs, CurrentError, out CurrentSlope);
-            CurrentBestSlope = new(HillClimber.Weights[0], HillClimber.Bias);
+            CurrentBestSlope = new(HillClimber.Weights[0], HillClimber.Unnormalize(HillClimber.Bias));
 
             base.Update(gameTime);
         }
